@@ -1,25 +1,23 @@
 """Unit tests for signing algorithm (no network required)."""
 
-import json
-import struct
 
 from xhs_cli.signing import (
+    PAYLOAD_LENGTH,
+    _build_content_string,
+    _build_payload_array,
+    _crc32_js_int,
     _custom_base64_encode,
-    _x3_base64_encode,
-    _hex_to_bytes,
-    _int_to_le_bytes,
-    _rotate_left,
     _custom_hash_v2,
     _extract_api_path,
-    _build_payload_array,
-    _xor_transform,
-    _crc32_js_int,
+    _hex_to_bytes,
+    _int_to_le_bytes,
     _rc4_encrypt,
-    _build_content_string,
+    _rotate_left,
+    _x3_base64_encode,
+    _xor_transform,
     build_get_uri,
     extract_uri,
     sign_main_api,
-    PAYLOAD_LENGTH,
 )
 
 

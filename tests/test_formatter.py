@@ -1,6 +1,6 @@
 """Unit tests for formatter (no network required)."""
 
-from xhs_cli.formatter import format_count, extract_note_id
+from xhs_cli.formatter import extract_note_id, format_count
 
 
 class TestFormatCount:

@@ -13,8 +13,8 @@
 - 🔍 **Search** — notes by keyword, user search, topic search
 - 📖 **Reading** — note detail, comments, sub-comments, user profiles
 - 📰 **Feed** — recommendation feed, hot/trending by category
-- 👥 **Social** — follow/unfollow, user bookmarks
-- 👍 **Interactions** — like, collect, comment, reply, delete
+- 👥 **Social** — follow/unfollow, favorites
+- 👍 **Interactions** — like, favorite, comment, reply, delete
 - ✍️ **Creator** — post image notes, delete notes, my-notes list
 - 🔔 **Notifications** — unread count, mentions, likes, new followers
 - 📊 **JSON output** — all commands support `--json` for scripting
@@ -66,15 +66,15 @@ xhs hot -c fashion                    # Categories: fashion, food, cosmetics,
                                       #   travel, fitness
 
 # ─── Social ───────────────────────────────────────
-xhs user-collects <user_id>           # User's bookmarks
+xhs favorites <user_id>                # User's bookmarked notes
 xhs follow <user_id>                  # Follow a user
 xhs unfollow <user_id>                # Unfollow a user
 
 # ─── Interactions ─────────────────────────────────
 xhs like <note_id>                     # Like a note
 xhs like <note_id> --undo             # Unlike
-xhs collect <note_id>                  # Collect (bookmark)
-xhs collect <note_id> --undo          # Uncollect
+xhs favorite <note_id>                 # Favorite (bookmark)
+xhs unfavorite <note_id>               # Unfavorite
 xhs comment <note_id> -c "好赞！"     # Post comment
 xhs reply <note_id> --comment-id X -c "回复"  # Reply to comment
 xhs delete-comment <note_id> <cmt_id> # Delete own comment

@@ -5,7 +5,6 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 from .constants import CONFIG_DIR_NAME, COOKIE_FILE
 
@@ -34,7 +33,7 @@ def load_saved_cookies() -> dict[str, str] | None:
         if data.get("a1"):
             logger.debug("Loaded saved cookies from %s", cookie_path)
             return data
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.debug("Failed to load saved cookies: %s", e)
     return None
 

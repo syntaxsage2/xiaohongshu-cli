@@ -2,10 +2,10 @@
 
 import click
 
-from ..cookies import get_cookies
 from ..client import XhsClient
-from ..exceptions import XhsApiError, NoCookieError
-from ..formatter import print_error, print_json, print_success, print_info
+from ..cookies import get_cookies
+from ..exceptions import NoCookieError, XhsApiError
+from ..formatter import print_error, print_info, print_json, print_success
 
 
 def _get_client(ctx) -> XhsClient:
@@ -31,7 +31,7 @@ def follow(ctx, user_id: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -51,19 +51,19 @@ def unfollow(ctx, user_id: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
-@click.command("user-collects")
+@click.command()
 @click.argument("user_id")
 @click.option("--cursor", default="", help="Pagination cursor")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.pass_context
-def user_collects(ctx, user_id: str, cursor: str, as_json: bool):
-    """List a user's collected (bookmarked) notes."""
+def favorites(ctx, user_id: str, cursor: str, as_json: bool):
+    """List a user's favorited (bookmarked) notes."""
     try:
         with _get_client(ctx) as client:
-            data = client.get_user_collects(user_id, cursor=cursor)
+            data = client.get_user_favorites(user_id, cursor=cursor)
 
         if as_json:
             print_json(data)
@@ -76,4 +76,4 @@ def user_collects(ctx, user_id: str, cursor: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None

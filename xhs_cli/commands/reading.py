@@ -2,15 +2,15 @@
 
 import click
 
-from ..cookies import get_cookies
 from ..client import XhsClient
-from ..exceptions import XhsApiError, NoCookieError
+from ..cookies import get_cookies
+from ..exceptions import NoCookieError, XhsApiError
 from ..formatter import (
     console,
     extract_note_id,
     print_error,
-    print_json,
     print_info,
+    print_json,
     render_comments,
     render_creator_notes,
     render_feed,
@@ -70,7 +70,7 @@ def search(ctx, keyword: str, sort: str, note_type: str, page: int, as_json: boo
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -93,7 +93,7 @@ def read(ctx, id_or_url: str, xsec_token: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -117,7 +117,7 @@ def comments(ctx, id_or_url: str, cursor: str, xsec_token: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -137,7 +137,7 @@ def user(ctx, user_id: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command("user-posts")
@@ -162,7 +162,7 @@ def user_posts(ctx, user_id: str, cursor: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -181,7 +181,7 @@ def feed(ctx, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -201,7 +201,7 @@ def topics(ctx, keyword: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command("sub-comments")
@@ -223,7 +223,7 @@ def sub_comments(ctx, note_id: str, comment_id: str, cursor: str, as_json: bool)
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command("search-user")
@@ -243,7 +243,7 @@ def search_user(ctx, keyword: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command("my-notes")
@@ -263,7 +263,7 @@ def my_notes(ctx, page: int, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 HOT_CATEGORIES = {
@@ -302,7 +302,7 @@ def hot(ctx, category: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -356,7 +356,7 @@ def notifications(ctx, notif_type: str, cursor: str, num: int, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -382,7 +382,7 @@ def unread(ctx, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 

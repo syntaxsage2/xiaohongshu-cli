@@ -15,7 +15,7 @@ from typing import Any
 
 import httpx
 
-from .constants import EDITH_HOST, CREATOR_HOST, HOME_URL, UPLOAD_HOST, USER_AGENT
+from .constants import CREATOR_HOST, EDITH_HOST, HOME_URL, UPLOAD_HOST, USER_AGENT
 from .cookies import cookies_to_string
 from .creator_signing import sign_creator
 from .exceptions import (
@@ -25,7 +25,7 @@ from .exceptions import (
     SignatureError,
     XhsApiError,
 )
-from .signing import build_get_uri, extract_uri, sign_main_api
+from .signing import build_get_uri, sign_main_api
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class XhsClient:
         try:
             data = json.loads(text)
         except json.JSONDecodeError:
-            raise XhsApiError(f"Non-JSON response: {text[:200]}")
+            raise XhsApiError(f"Non-JSON response: {text[:200]}") from None
 
         if data.get("success"):
             return data.get("data", data.get("success"))
@@ -343,14 +343,14 @@ class XhsClient:
             "note_oid": note_id,
         })
 
-    def collect_note(self, note_id: str) -> Any:
-        """Collect (bookmark) a note."""
+    def favorite_note(self, note_id: str) -> Any:
+        """Favorite (bookmark) a note."""
         return self._main_api_post("/api/sns/web/v1/note/collect", {
             "note_id": note_id,
         })
 
-    def uncollect_note(self, note_id: str) -> Any:
-        """Uncollect (unbookmark) a note."""
+    def unfavorite_note(self, note_id: str) -> Any:
+        """Unfavorite (unbookmark) a note."""
         return self._main_api_post("/api/sns/web/v1/note/uncollect", {
             "note_id": note_id,
         })
@@ -520,8 +520,8 @@ class XhsClient:
 
     # ─── P1: User Content Lists ───────────────────────────────────────────
 
-    def get_user_collects(self, user_id: str, cursor: str = "") -> Any:
-        """Get a user's collected (bookmarked) notes."""
+    def get_user_favorites(self, user_id: str, cursor: str = "") -> Any:
+        """Get a user's favorited (bookmarked) notes."""
         return self._main_api_get("/api/sns/web/v2/note/collect/page", {
             "user_id": user_id,
             "cursor": cursor,
@@ -580,9 +580,8 @@ class XhsClient:
             raise XhsApiError("Could not parse __INITIAL_STATE__ from HTML")
 
         # Replace bare `undefined` values
-        import re as re_mod
-        state_str = re_mod.sub(r':\s*undefined', ':"\"\"', match.group(1))
-        state_str = re_mod.sub(r',\s*undefined', ',""', state_str)
+        state_str = re.sub(r':\s*undefined', ':"\"\"', match.group(1))
+        state_str = re.sub(r',\s*undefined', ',""', state_str)
         state = json.loads(state_str)
 
         detail_map = state.get("note", {}).get("noteDetailMap", {})

@@ -2,10 +2,10 @@
 
 import click
 
-from ..cookies import clear_cookies, get_cookies, load_saved_cookies
 from ..client import XhsClient
+from ..cookies import clear_cookies, get_cookies
 from ..exceptions import NoCookieError, XhsApiError
-from ..formatter import console, print_error, print_json, print_success, print_info, render_user_info
+from ..formatter import console, print_error, print_json, print_success, render_user_info
 
 
 @click.command()
@@ -30,10 +30,10 @@ def login(cookie_source: str, as_json: bool):
 
     except NoCookieError as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except XhsApiError as e:
         print_error(f"Login verification failed: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -55,7 +55,7 @@ def status(ctx, as_json: bool):
             ip_location = info.get("ip_location", "")
             desc = info.get("desc", "")
 
-            console.print(f"[bold green]✓ Logged in[/bold green]")
+            console.print("[bold green]✓ Logged in[/bold green]")
             console.print(f"  昵称: [bold]{nickname}[/bold]")
             if red_id:
                 console.print(f"  小红书号: {red_id}")
@@ -66,10 +66,10 @@ def status(ctx, as_json: bool):
 
     except NoCookieError:
         print_error("Not logged in. Run: xhs login")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except XhsApiError as e:
         print_error(f"Status check failed: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -97,8 +97,8 @@ def whoami(ctx, as_json: bool):
 
     except NoCookieError:
         print_error("Not logged in. Run: xhs login")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except XhsApiError as e:
         print_error(f"Failed to get profile: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 

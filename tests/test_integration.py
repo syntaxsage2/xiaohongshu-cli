@@ -8,14 +8,13 @@ Run with: uv run pytest tests/test_integration.py -v
 Skip if no cookies available.
 """
 
-import json
 import time
 
 import pytest
 
-from xhs_cli.cookies import get_cookies, load_saved_cookies, extract_browser_cookies
 from xhs_cli.client import XhsClient
-from xhs_cli.exceptions import XhsApiError, NoCookieError
+from xhs_cli.cookies import get_cookies
+from xhs_cli.exceptions import NoCookieError
 
 
 def _get_test_cookies():

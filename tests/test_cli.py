@@ -4,7 +4,6 @@ from click.testing import CliRunner
 
 from xhs_cli.cli import cli
 
-
 runner = CliRunner()
 
 
@@ -50,9 +49,9 @@ class TestCliBasic:
             "feed", "hot", "topics", "search-user", "my-notes",
             "notifications", "unread",
             # Interactions
-            "like", "collect", "comment", "reply", "delete-comment",
+            "like", "favorite", "unfavorite", "comment", "reply", "delete-comment",
             # Social
-            "follow", "unfollow", "user-collects",
+            "follow", "unfollow", "favorites",
             # Creator
             "post", "delete",
         ]

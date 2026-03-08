@@ -2,10 +2,10 @@
 
 import click
 
-from ..cookies import get_cookies
 from ..client import XhsClient
-from ..exceptions import XhsApiError, NoCookieError
-from ..formatter import extract_note_id, print_error, print_json, print_success, print_info
+from ..cookies import get_cookies
+from ..exceptions import NoCookieError, XhsApiError
+from ..formatter import extract_note_id, print_error, print_info, print_json, print_success
 
 
 def _get_client(ctx) -> XhsClient:
@@ -64,7 +64,7 @@ def post(ctx, title: str, body: str, images: tuple[str, ...], topic: str | None,
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command("delete")
@@ -90,4 +90,4 @@ def delete(ctx, id_or_url: str, as_json: bool, yes: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None

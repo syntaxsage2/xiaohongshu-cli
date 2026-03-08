@@ -24,7 +24,7 @@ import logging
 import click
 
 from . import __version__
-from .commands import auth, reading, interactions, creator, social
+from .commands import auth, creator, interactions, reading, social
 
 
 @click.group()
@@ -73,7 +73,8 @@ cli.add_command(reading.unread)
 # ─── Interaction commands ────────────────────────────────────────────────────
 
 cli.add_command(interactions.like)
-cli.add_command(interactions.collect)
+cli.add_command(interactions.favorite)
+cli.add_command(interactions.unfavorite)
 cli.add_command(interactions.comment)
 cli.add_command(interactions.reply)
 cli.add_command(interactions.delete_comment)
@@ -82,7 +83,7 @@ cli.add_command(interactions.delete_comment)
 
 cli.add_command(social.follow)
 cli.add_command(social.unfollow)
-cli.add_command(social.user_collects)
+cli.add_command(social.favorites)
 
 # ─── Creator commands ───────────────────────────────────────────────────────
 

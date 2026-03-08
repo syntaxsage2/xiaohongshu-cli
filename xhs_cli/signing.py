@@ -16,12 +16,12 @@ Ported from: ~/readers/redbook/src/lib/signing.ts (Cloxl/xhshow, MIT license)
 import hashlib
 import json
 import os
+import random
 import struct
 import time
-import random
 from typing import Any
 
-from .constants import SDK_VERSION, APP_ID, PLATFORM, USER_AGENT
+from .constants import APP_ID, PLATFORM, SDK_VERSION, USER_AGENT
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -400,14 +400,16 @@ def _generate_fingerprint(cookies: dict[str, str], user_agent: str) -> dict[str,
     gpu_entry = random.choice(GPU_VENDORS)
     vendor, renderer = gpu_entry.split("|")
 
-    resolutions, weights = zip(*SCREEN_RESOLUTIONS)
+    resolutions, weights = zip(*SCREEN_RESOLUTIONS, strict=True)
     screen_res = _weighted_choice(list(resolutions), list(weights))
     width_str, height_str = screen_res.split(";")
     width = int(width_str)
     height = int(height_str)
 
     avail_width = width - _weighted_choice([0, 30, 60, 80], [0.1, 0.4, 0.3, 0.2]) if random.random() > 0.5 else width
-    avail_height = height - _weighted_choice([30, 60, 80, 100], [0.2, 0.5, 0.2, 0.1]) if random.random() > 0.5 else height
+    avail_height = (
+        height - _weighted_choice([30, 60, 80, 100], [0.2, 0.5, 0.2, 0.1]) if random.random() > 0.5 else height
+    )
 
     color_depth = _weighted_choice([16, 24, 30, 32], [0.05, 0.6, 0.05, 0.3])
     device_memory = _weighted_choice([1, 2, 4, 8, 12, 16], [0.1, 0.25, 0.4, 0.2, 0.03, 0.01])

@@ -6,7 +6,6 @@ from typing import Any
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 console = Console()
 error_console = Console(stderr=True)
@@ -38,7 +37,7 @@ def format_count(n: int | str) -> str:
         try:
             n = int(n)
         except ValueError:
-            return n
+            return str(n)
     if n >= 100_000_000:
         return f"{n / 100_000_000:.1f}亿"
     if n >= 10_000:
@@ -177,13 +176,12 @@ def render_search_results(data: dict[str, Any]) -> None:
         if not isinstance(note_card, dict):
             continue
 
-        title = note_card.get("title", note_card.get("display_title", ""))[:40]
+        title = str(note_card.get("title", note_card.get("display_title", "")))[:40]
         user = note_card.get("user", {})
         nickname = user.get("nickname", "")
         liked = str(note_card.get("interact_info", {}).get("liked_count", ""))
         note_type = "📹" if note_card.get("type") == "video" else "📷"
         note_id = item.get("id", note_card.get("note_id", ""))
-        xsec_token = item.get("xsec_token", "")
 
         table.add_row(str(i), title, nickname, liked, note_type, note_id)
 
@@ -205,7 +203,6 @@ def render_comments(data: dict[str, Any]) -> None:
         content = comment.get("content", "")
         like_count = comment.get("like_count", "0")
         sub_comment_count = comment.get("sub_comment_count", 0)
-        create_time = comment.get("create_time", 0)
 
         header = f"[bold]{nickname}[/bold]  [dim]❤️ {like_count}[/dim]"
         if sub_comment_count > 0:
@@ -300,7 +297,12 @@ def render_users(data: Any) -> None:
     if isinstance(data, list):
         users = data
     elif isinstance(data, dict):
-        users = data.get("user_info_dtos", data.get("users", data.get("items", [])))
+        users = (
+            data.get("user_info_dtos")
+            or data.get("users")
+            or data.get("items")
+            or []
+        )
     else:
         users = []
 

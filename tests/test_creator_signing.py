@@ -3,7 +3,7 @@
 import base64
 import json
 
-from xhs_cli.creator_signing import sign_creator, _aes_encrypt
+from xhs_cli.creator_signing import _aes_encrypt, sign_creator
 
 
 class TestAesEncrypt:

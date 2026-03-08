@@ -1,16 +1,13 @@
 """Unit tests for cookie management (no network required)."""
 
-import json
-import os
-from pathlib import Path
 
 import pytest
 
 from xhs_cli.cookies import (
-    load_saved_cookies,
-    save_cookies,
     clear_cookies,
     cookies_to_string,
+    load_saved_cookies,
+    save_cookies,
 )
 
 

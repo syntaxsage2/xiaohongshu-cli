@@ -2,9 +2,9 @@
 
 import click
 
-from ..cookies import get_cookies
 from ..client import XhsClient
-from ..exceptions import XhsApiError, NoCookieError
+from ..cookies import get_cookies
+from ..exceptions import NoCookieError, XhsApiError
 from ..formatter import extract_note_id, print_error, print_json, print_success
 
 
@@ -40,36 +40,51 @@ def like(ctx, id_or_url: str, undo: bool, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
 @click.argument("id_or_url")
-@click.option("--undo", is_flag=True, help="Uncollect instead of collect")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.pass_context
-def collect(ctx, id_or_url: str, undo: bool, as_json: bool):
-    """Collect (bookmark) or uncollect a note."""
+def favorite(ctx, id_or_url: str, as_json: bool):
+    """Favorite (bookmark) a note."""
     note_id = extract_note_id(id_or_url)
 
     try:
         with _get_client(ctx) as client:
-            if undo:
-                data = client.uncollect_note(note_id)
-                if as_json:
-                    print_json(data)
-                else:
-                    print_success(f"Uncollected note {note_id}")
-            else:
-                data = client.collect_note(note_id)
-                if as_json:
-                    print_json(data)
-                else:
-                    print_success(f"Collected note {note_id}")
+            data = client.favorite_note(note_id)
+
+        if as_json:
+            print_json(data)
+        else:
+            print_success(f"Favorited note {note_id}")
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
+
+
+@click.command()
+@click.argument("id_or_url")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def unfavorite(ctx, id_or_url: str, as_json: bool):
+    """Unfavorite (unbookmark) a note."""
+    note_id = extract_note_id(id_or_url)
+
+    try:
+        with _get_client(ctx) as client:
+            data = client.unfavorite_note(note_id)
+
+        if as_json:
+            print_json(data)
+        else:
+            print_success(f"Unfavorited note {note_id}")
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -92,7 +107,7 @@ def comment(ctx, id_or_url: str, content: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command()
@@ -116,7 +131,7 @@ def reply(ctx, id_or_url: str, comment_id: str, content: str, as_json: bool):
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 @click.command("delete-comment")
@@ -141,5 +156,5 @@ def delete_comment(ctx, note_id: str, comment_id: str, as_json: bool, yes: bool)
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
