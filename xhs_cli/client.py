@@ -383,11 +383,20 @@ class XhsClient:
         note_id: str,
         cursor: str = "",
         xsec_token: str = "",
+        top_comment_id: str = "",
     ) -> Any:
-        """Get comments for a note."""
+        """Get comments for a note.
+
+        Args:
+            note_id: Note ID
+            cursor: Pagination cursor
+            xsec_token: Security token (required — without it, API triggers captcha)
+            top_comment_id: Pin a specific comment at the top (optional, pass empty string)
+        """
         return self._main_api_get("/api/sns/web/v2/comment/page", {
             "note_id": note_id,
             "cursor": cursor,
+            "top_comment_id": top_comment_id,
             "image_formats": "jpg,webp,avif",
             "xsec_token": xsec_token,
         })
