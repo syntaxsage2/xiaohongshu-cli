@@ -107,18 +107,84 @@ Other authenticated commands automatically retry once with fresh browser cookies
 
 Most commands require authentication. Use `--cookie-source` to specify browser (default: chrome; also supports firefox, edge, safari, brave).
 
+### Cookie TTL
+
+Saved cookies are valid for **7 days** by default. After that, the client automatically attempts to refresh from the browser. If browser extraction fails, the existing cookies are used with a warning.
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OUTPUT` | `auto` | Output format: `json`, `yaml`, `rich`, or `auto` (→ YAML when non-TTY) |
+| `XHS_COOKIE_SOURCE` | `chrome` | Default browser for cookie extraction |
+
+## Rate Limiting & Anti-Detection
+
+xiaohongshu-cli includes built-in rate-limit protection and anti-detection:
+
+- **Request delay**: 1 second minimum between consecutive API calls (with random jitter)
+- **Auto-retry**: Automatically retries on HTTP 429/5xx and network errors (up to 3 times, exponential backoff)
+- **Browser fingerprint**: Sends `sec-ch-ua`, `sec-fetch-*`, and `accept-language` headers matching Edge 142
+- **Signed requests**: All API calls use `x-s` / `x-t` signatures (reverse-engineered from web client)
+
+## AI Agent Integration
+
+All commands support `--json` and `--yaml` flags for structured output. When `stdout` is not a TTY (e.g., piped to another program or invoked by an AI agent), output defaults to YAML.
+
+Output follows a stable envelope schema ([SCHEMA.md](./SCHEMA.md)):
+```yaml
+ok: true
+schema_version: "1"
+data: { ... }
+```
+
+See `.agent/skills/SKILL.md` for AI agent usage instructions.
+
 ## Development
 
 ```bash
+# Install dependencies
+uv sync
+
 # Run tests
-.venv/bin/python -m pytest tests/ -v
+uv run pytest tests/ -v
 
 # Unit tests only (no network)
-.venv/bin/python -m pytest tests/ -v --ignore=tests/test_integration.py
+uv run pytest tests/ -v --ignore=tests/test_integration.py -m "not smoke"
+
+# Smoke tests (need cookies)
+uv run pytest tests/ -v -m smoke
 
 # Integration tests (need cookies)
-.venv/bin/python -m pytest tests/test_integration.py -v
+uv run pytest tests/test_integration.py -v
+
+# Lint
+uv run ruff check .
 ```
+
+## Troubleshooting
+
+**Q: `NoCookieError: No 'a1' cookie found`**
+
+1. Open Chrome/Edge and visit https://www.xiaohongshu.com/
+2. Log in with your account
+3. Run `xhs login --cookie-source chrome`
+
+**Q: `NeedVerifyError: Captcha required`**
+
+XHS has triggered a captcha check. Open https://www.xiaohongshu.com/ in your browser, complete the captcha, then retry.
+
+**Q: `IpBlockedError: IP blocked by XHS`**
+
+Try a different network (e.g., mobile hotspot or VPN). XHS blocks IPs that make too many requests.
+
+**Q: `SessionExpiredError: Session expired`**
+
+Your cookies have expired. Run `xhs login` to refresh.
+
+**Q: Requests are slow**
+
+The built-in rate-limit delay (1s between requests) is intentional to avoid triggering XHS's anti-scraping. You can reduce it at your own risk by passing a shorter timeout in code, but this may lead to IP blocks.
 
 ## License
 

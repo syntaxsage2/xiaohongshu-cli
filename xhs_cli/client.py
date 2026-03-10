@@ -48,11 +48,20 @@ def _generate_search_id() -> str:
 
 
 class XhsClient:
-    """Xiaohongshu API client with automatic signing."""
+    """Xiaohongshu API client with automatic signing, rate limiting, and retry."""
 
-    def __init__(self, cookies: dict[str, str], timeout: float = 30.0):
+    def __init__(
+        self,
+        cookies: dict[str, str],
+        timeout: float = 30.0,
+        request_delay: float = 1.0,
+        max_retries: int = 3,
+    ):
         self.cookies = cookies
         self._http = httpx.Client(timeout=timeout, follow_redirects=True)
+        self._request_delay = request_delay
+        self._max_retries = max_retries
+        self._last_request_time = 0.0
 
     def close(self) -> None:
         self._http.close()
@@ -63,6 +72,20 @@ class XhsClient:
     def __exit__(self, *args):
         self.close()
 
+    def _rate_limit_delay(self) -> None:
+        """Enforce minimum delay between consecutive requests to avoid rate limiting."""
+        if self._request_delay <= 0:
+            return
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self._request_delay:
+            sleep_time = self._request_delay - elapsed + random.uniform(0, 0.5)
+            logger.debug("Rate-limit delay: %.2fs", sleep_time)
+            time.sleep(sleep_time)
+
+    def _mark_request(self) -> None:
+        """Record timestamp of last request."""
+        self._last_request_time = time.time()
+
     def _base_headers(self) -> dict[str, str]:
         return {
             "user-agent": USER_AGENT,
@@ -70,6 +93,15 @@ class XhsClient:
             "cookie": cookies_to_string(self.cookies),
             "origin": HOME_URL,
             "referer": f"{HOME_URL}/",
+            # Anti-detection: browser-like sec-ch-ua headers
+            "sec-ch-ua": '"Chromium";v="142", "Microsoft Edge";v="142", "Not:A-Brand";v="24"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "accept": "application/json, text/plain, */*",
+            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
         }
 
     def _handle_response(self, resp: httpx.Response) -> Any:
@@ -106,6 +138,50 @@ class XhsClient:
             response=data,
         )
 
+    def _request_with_retry(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """Execute HTTP request with automatic retry on transient errors.
+
+        Retries on:
+        - httpx.TimeoutException / httpx.NetworkError
+        - HTTP 429 (rate limited), 500, 502, 503, 504
+        Does NOT retry on XhsApiError (business logic errors from _handle_response).
+        """
+        self._rate_limit_delay()
+        last_exc: Exception | None = None
+
+        for attempt in range(self._max_retries):
+            try:
+                if method == "GET":
+                    resp = self._http.get(url, **kwargs)
+                else:
+                    resp = self._http.post(url, **kwargs)
+                self._mark_request()
+
+                # Retry on server errors and rate limits
+                if resp.status_code in (429, 500, 502, 503, 504):
+                    wait = (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(
+                        "HTTP %d from %s, retrying in %.1fs (attempt %d/%d)",
+                        resp.status_code, url[:80], wait, attempt + 1, self._max_retries,
+                    )
+                    time.sleep(wait)
+                    continue
+
+                return resp
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                last_exc = exc
+                wait = (2 ** attempt) + random.uniform(0, 1)
+                logger.warning(
+                    "Network error: %s, retrying in %.1fs (attempt %d/%d)",
+                    exc, wait, attempt + 1, self._max_retries,
+                )
+                time.sleep(wait)
+
+        # All retries exhausted
+        if last_exc:
+            raise XhsApiError(f"Request failed after {self._max_retries} retries: {last_exc}") from last_exc
+        raise XhsApiError(f"Request failed after {self._max_retries} retries: HTTP {resp.status_code}")
+
     # ─── Main API Methods ──────────────────────────────────────────────────
 
     def _main_api_get(
@@ -119,7 +195,7 @@ class XhsClient:
         url = f"{EDITH_HOST}{full_uri}"
 
         logger.debug("GET %s", url)
-        resp = self._http.get(url, headers={**self._base_headers(), **sign_headers})
+        resp = self._request_with_retry("GET", url, headers={**self._base_headers(), **sign_headers})
         return self._handle_response(resp)
 
     def _main_api_post(
@@ -137,7 +213,7 @@ class XhsClient:
             headers.update(header_overrides)
 
         logger.debug("POST %s", url)
-        resp = self._http.post(url, headers=headers, content=json.dumps(data, separators=(",", ":")))
+        resp = self._request_with_retry("POST", url, headers=headers, content=json.dumps(data, separators=(",", ":")))
         return self._handle_response(resp)
 
     # ─── Creator API Methods ───────────────────────────────────────────────
@@ -170,7 +246,7 @@ class XhsClient:
         }
 
         logger.debug("Creator GET %s", url)
-        resp = self._http.get(url, headers=headers)
+        resp = self._request_with_retry("GET", url, headers=headers)
         return self._handle_response(resp)
 
     def _creator_post(
@@ -192,7 +268,7 @@ class XhsClient:
         }
 
         logger.debug("Creator POST %s", url)
-        resp = self._http.post(url, headers=headers, content=json.dumps(data, separators=(",", ":")))
+        resp = self._request_with_retry("POST", url, headers=headers, content=json.dumps(data, separators=(",", ":")))
         return self._handle_response(resp)
 
     # ─── Reading Endpoints ─────────────────────────────────────────────────

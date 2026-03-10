@@ -6,12 +6,17 @@ import json
 import logging
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 
 from .constants import CONFIG_DIR_NAME, COOKIE_FILE
 
 logger = logging.getLogger(__name__)
+
+# Cookie TTL: warn and attempt browser refresh after 7 days
+COOKIE_TTL_DAYS = 7
+_COOKIE_TTL_SECONDS = COOKIE_TTL_DAYS * 86400
 
 BrowserLoader = Callable[..., object]
 SUPPORTED_BROWSERS: dict[str, str] = {
@@ -51,9 +56,10 @@ def load_saved_cookies() -> dict[str, str] | None:
 
 
 def save_cookies(cookies: dict[str, str]) -> None:
-    """Save cookies to local storage with restricted permissions."""
+    """Save cookies to local storage with restricted permissions and TTL timestamp."""
     cookie_path = get_cookie_path()
-    cookie_path.write_text(json.dumps(cookies, indent=2))
+    payload = {**cookies, "saved_at": time.time()}
+    cookie_path.write_text(json.dumps(payload, indent=2))
     cookie_path.chmod(0o600)
     logger.debug("Saved cookies to %s", cookie_path)
 
@@ -182,9 +188,9 @@ def extract_browser_cookies(source: str = "chrome") -> dict[str, str] | None:
 
 def get_cookies(cookie_source: str = "chrome", *, force_refresh: bool = False) -> dict[str, str]:
     """
-    Multi-strategy cookie acquisition.
+    Multi-strategy cookie acquisition with TTL-based auto-refresh.
 
-    1. Load saved cookies
+    1. Load saved cookies (skip if stale > 7 days)
     2. Extract from browser
     3. Raise error if all fail
     """
@@ -192,6 +198,21 @@ def get_cookies(cookie_source: str = "chrome", *, force_refresh: bool = False) -
     if not force_refresh:
         saved = load_saved_cookies()
         if saved:
+            # Check TTL — refresh from browser if stale
+            saved_at = saved.pop("saved_at", 0)  # pop to avoid passing to client
+            if saved_at and (time.time() - float(saved_at)) > _COOKIE_TTL_SECONDS:
+                logger.info(
+                    "Cookies older than %d days, attempting browser refresh",
+                    COOKIE_TTL_DAYS,
+                )
+                fresh = extract_browser_cookies(cookie_source)
+                if fresh:
+                    save_cookies(fresh)
+                    return fresh
+                logger.warning(
+                    "Cookie refresh failed; using existing cookies (age: %d+ days)",
+                    COOKIE_TTL_DAYS,
+                )
             return saved
 
     # 2. Try browser extraction
