@@ -8,11 +8,17 @@ Usage:
     xhs user <user_id>
     xhs user-posts <user_id> [--cursor CURSOR]
     xhs feed
+    xhs hot [--category CATEGORY]
     xhs topics <keyword>
     xhs like <id_or_url> [--undo]
-    xhs collect <id_or_url> [--undo]
+    xhs favorite <id_or_url>
+    xhs unfavorite <id_or_url>
     xhs comment <id_or_url> --content "..."
     xhs reply <id_or_url> --comment-id ID --content "..."
+    xhs favorites [user_id]
+    xhs my-notes [--page N]
+    xhs notifications [--type mentions|likes|connections]
+    xhs unread
     xhs post --title "..." --body "..." --images img.png
     xhs delete <id_or_url> [-y]
 """
@@ -24,7 +30,7 @@ import logging
 import click
 
 from . import __version__
-from .commands import auth, creator, interactions, reading, social
+from .commands import auth, creator, interactions, notifications, reading, social
 
 
 @click.group()
@@ -68,9 +74,6 @@ cli.add_command(reading.feed)
 cli.add_command(reading.hot)
 cli.add_command(reading.topics)
 cli.add_command(reading.search_user)
-cli.add_command(reading.my_notes)
-cli.add_command(reading.notifications)
-cli.add_command(reading.unread)
 
 # ─── Interaction commands ────────────────────────────────────────────────────
 
@@ -90,7 +93,13 @@ cli.add_command(social.favorites)
 # ─── Creator commands ───────────────────────────────────────────────────────
 
 cli.add_command(creator.post)
+cli.add_command(creator.my_notes)
 cli.add_command(creator.delete)
+
+# ─── Notification commands ──────────────────────────────────────────────────
+
+cli.add_command(notifications.notifications)
+cli.add_command(notifications.unread)
 
 
 if __name__ == "__main__":

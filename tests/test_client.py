@@ -1,5 +1,6 @@
-"""Unit tests for XHS client request payloads and endpoint selection."""
+"""Unit tests for XHS client request payloads, cookies, and endpoint selection."""
 
+import httpx
 import pytest
 
 from xhs_cli.client import XhsClient
@@ -63,3 +64,35 @@ class TestCreatorEndpoints:
                 client.delete_note("note-123")
         finally:
             client.close()
+
+
+class TestTransportCookies:
+    def test_request_with_retry_merges_response_cookies(self, monkeypatch):
+        request = httpx.Request("POST", "https://edith.xiaohongshu.com/api/test")
+        response = httpx.Response(
+            200,
+            headers=[
+                ("set-cookie", "web_session=real-session; Path=/; Domain=.xiaohongshu.com"),
+                ("set-cookie", "web_session_sec=real-sec; Path=/; Domain=.xiaohongshu.com"),
+            ],
+            json={"success": True, "data": {"ok": True}},
+            request=request,
+        )
+
+        class _FakeHttpClient:
+            def request(self, method, url, **kwargs):
+                return response
+
+            def close(self):
+                return None
+
+        client = XhsClient({"a1": "cookie", "web_session": "guest-session"}, request_delay=0)
+        client._http = _FakeHttpClient()
+        try:
+            resp = client._request_with_retry("POST", "https://edith.xiaohongshu.com/api/test")
+        finally:
+            client.close()
+
+        assert resp is response
+        assert client.cookies["web_session"] == "real-session"
+        assert client.cookies["web_session_sec"] == "real-sec"

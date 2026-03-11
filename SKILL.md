@@ -15,7 +15,7 @@ tags:
 # xiaohongshu-cli — Xiaohongshu CLI Tool
 
 **Binary:** `xhs`
-**Credentials:** browser cookies (auto-extracted) or QR code login (`--qrcode`)
+**Credentials:** browser cookies (auto-extracted) or browser-assisted QR login (`--qrcode`)
 
 ## Setup
 
@@ -40,7 +40,7 @@ xhs status --yaml >/dev/null && echo "AUTH_OK" || echo "AUTH_NEEDED"
 ```
 
 If `AUTH_OK`, skip to [Command Reference](#command-reference).
-If `AUTH_NEEDED`, proceed to Step 1. Prefer `--qrcode` for environments without browser access.
+If `AUTH_NEEDED`, proceed to Step 1. Prefer `--qrcode` when browser cookie extraction is unavailable but launching a browser is acceptable.
 
 ### Step 1: Guide user to authenticate
 
@@ -49,7 +49,7 @@ Ensure user is logged into xiaohongshu.com in any browser supported by [browser_
 ```bash
 xhs login                              # auto-detect browser with valid cookies
 xhs login --cookie-source arc          # specify browser explicitly
-xhs login --qrcode                     # scan QR code with Xiaohongshu app (no browser needed)
+xhs login --qrcode                     # browser-assisted QR login with terminal QR output
 ```
 
 Verify with:
@@ -131,7 +131,7 @@ Payloads live under `.data`.
 | Command | Description |
 |---------|-------------|
 | `xhs login` | Extract cookies from browser (auto-detect) |
-| `xhs login --qrcode` | Login via QR code — terminal QR + activate API (no browser needed) |
+| `xhs login --qrcode` | Browser-assisted QR login — terminal QR output, browser completes login |
 | `xhs status` | Check authentication status |
 | `xhs logout` | Clear cached cookies |
 | `xhs whoami` | Show current user profile |
@@ -186,13 +186,14 @@ xhs hot -c food --yaml
 xhs hot -c travel --yaml
 ```
 
-### QR code login (headless environments)
+### QR code login
 
 ```bash
 # When browser cookie extraction is not available
 xhs login --qrcode
+# → Launches a browser-assisted login flow
 # → Renders QR in terminal using Unicode half-blocks
-# → Scan with Xiaohongshu app → confirm → done
+# → Scan with Xiaohongshu app → confirm → export cookies
 ```
 
 ### URL to insights pipeline

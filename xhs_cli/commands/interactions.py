@@ -2,8 +2,8 @@
 
 import click
 
-from ..formatter import extract_note_id, maybe_print_structured, print_success
-from ._common import exit_for_error, run_client_action, structured_output_options
+from ..formatter import extract_note_id, print_success
+from ._common import handle_command, structured_output_options
 
 
 @click.command()
@@ -14,15 +14,14 @@ from ._common import exit_for_error, run_client_action, structured_output_option
 def like(ctx, id_or_url: str, undo: bool, as_json: bool, as_yaml: bool):
     """Like or unlike a note."""
     note_id = extract_note_id(id_or_url)
-
-    try:
-        action = (lambda client: client.unlike_note(note_id)) if undo else (lambda client: client.like_note(note_id))
-        data = run_client_action(ctx, action)
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"{'Unliked' if undo else 'Liked'} note {note_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    action = (lambda client: client.unlike_note(note_id)) if undo else (lambda client: client.like_note(note_id))
+    handle_command(
+        ctx,
+        action=action,
+        render=lambda _data: print_success(f"{'Unliked' if undo else 'Liked'} note {note_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
 
 
 @click.command()
@@ -32,15 +31,13 @@ def like(ctx, id_or_url: str, undo: bool, as_json: bool, as_yaml: bool):
 def favorite(ctx, id_or_url: str, as_json: bool, as_yaml: bool):
     """Favorite (bookmark) a note."""
     note_id = extract_note_id(id_or_url)
-
-    try:
-        data = run_client_action(ctx, lambda client: client.favorite_note(note_id))
-
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"Favorited note {note_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    handle_command(
+        ctx,
+        action=lambda client: client.favorite_note(note_id),
+        render=lambda _data: print_success(f"Favorited note {note_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
 
 
 @click.command()
@@ -50,15 +47,13 @@ def favorite(ctx, id_or_url: str, as_json: bool, as_yaml: bool):
 def unfavorite(ctx, id_or_url: str, as_json: bool, as_yaml: bool):
     """Unfavorite (unbookmark) a note."""
     note_id = extract_note_id(id_or_url)
-
-    try:
-        data = run_client_action(ctx, lambda client: client.unfavorite_note(note_id))
-
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"Unfavorited note {note_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    handle_command(
+        ctx,
+        action=lambda client: client.unfavorite_note(note_id),
+        render=lambda _data: print_success(f"Unfavorited note {note_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
 
 
 @click.command()
@@ -69,15 +64,13 @@ def unfavorite(ctx, id_or_url: str, as_json: bool, as_yaml: bool):
 def comment(ctx, id_or_url: str, content: str, as_json: bool, as_yaml: bool):
     """Post a comment on a note."""
     note_id = extract_note_id(id_or_url)
-
-    try:
-        data = run_client_action(ctx, lambda client: client.post_comment(note_id, content))
-
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"Comment posted on {note_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    handle_command(
+        ctx,
+        action=lambda client: client.post_comment(note_id, content),
+        render=lambda _data: print_success(f"Comment posted on {note_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
 
 
 @click.command()
@@ -89,15 +82,13 @@ def comment(ctx, id_or_url: str, content: str, as_json: bool, as_yaml: bool):
 def reply(ctx, id_or_url: str, comment_id: str, content: str, as_json: bool, as_yaml: bool):
     """Reply to a specific comment."""
     note_id = extract_note_id(id_or_url)
-
-    try:
-        data = run_client_action(ctx, lambda client: client.reply_comment(note_id, comment_id, content))
-
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"Reply posted on comment {comment_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    handle_command(
+        ctx,
+        action=lambda client: client.reply_comment(note_id, comment_id, content),
+        render=lambda _data: print_success(f"Reply posted on comment {comment_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
 
 
 @click.command("delete-comment")
@@ -111,11 +102,10 @@ def delete_comment(ctx, note_id: str, comment_id: str, as_json: bool, as_yaml: b
     if not yes:
         click.confirm(f"Delete comment {comment_id} on note {note_id}?", abort=True)
 
-    try:
-        data = run_client_action(ctx, lambda client: client.delete_comment(note_id, comment_id))
-
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"Deleted comment {comment_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    handle_command(
+        ctx,
+        action=lambda client: client.delete_comment(note_id, comment_id),
+        render=lambda _data: print_success(f"Deleted comment {comment_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )

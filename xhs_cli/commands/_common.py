@@ -53,6 +53,41 @@ def run_client_action(ctx, action: Callable[[XhsClient], T]) -> T:
             raise exc from None
 
 
+def handle_command(
+    ctx,
+    *,
+    action: Callable[[XhsClient], T],
+    render: Callable[[T], None] | None,
+    as_json: bool,
+    as_yaml: bool,
+    prefix: str | None = None,
+):
+    """Run a client action, emit structured output if requested, else render."""
+    from ..formatter import maybe_print_structured
+
+    try:
+        data = run_client_action(ctx, action)
+        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml) and render:
+            render(data)
+        return data
+    except Exception as exc:
+        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix=prefix)
+
+
+def handle_errors(
+    fn: Callable[[], T],
+    *,
+    as_json: bool,
+    as_yaml: bool,
+    prefix: str | None = None,
+) -> T:
+    """Run arbitrary command logic and funnel failures through exit_for_error."""
+    try:
+        return fn()
+    except Exception as exc:
+        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix=prefix)
+
+
 def error_code_for_exception(exc: Exception) -> str:
     """Map domain exceptions to stable structured error codes."""
     if isinstance(exc, (NoCookieError, SessionExpiredError)):

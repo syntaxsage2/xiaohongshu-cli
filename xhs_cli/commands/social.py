@@ -2,8 +2,9 @@
 
 import click
 
-from ..formatter import maybe_print_structured, print_info, print_success
-from ._common import exit_for_error, run_client_action, structured_output_options
+from ..command_normalizers import normalize_paged_notes, resolve_current_user_id
+from ..formatter import print_info, print_success, render_user_posts
+from ._common import handle_command, run_client_action, structured_output_options
 
 
 def _resolve_user_id(ctx, user_id: str | None) -> str:
@@ -11,7 +12,7 @@ def _resolve_user_id(ctx, user_id: str | None) -> str:
     if user_id:
         return user_id
     info = run_client_action(ctx, lambda client: client.get_self_info())
-    uid = info.get("user_id", "") if isinstance(info, dict) else ""
+    uid = resolve_current_user_id(info)
     if not uid:
         raise click.UsageError("Cannot determine current user_id. Please specify user_id explicitly.")
     return uid
@@ -23,14 +24,13 @@ def _resolve_user_id(ctx, user_id: str | None) -> str:
 @click.pass_context
 def follow(ctx, user_id: str, as_json: bool, as_yaml: bool):
     """Follow a user."""
-    try:
-        data = run_client_action(ctx, lambda client: client.follow_user(user_id))
-
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"Followed user {user_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    handle_command(
+        ctx,
+        action=lambda client: client.follow_user(user_id),
+        render=lambda _data: print_success(f"Followed user {user_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
 
 
 @click.command()
@@ -39,14 +39,13 @@ def follow(ctx, user_id: str, as_json: bool, as_yaml: bool):
 @click.pass_context
 def unfollow(ctx, user_id: str, as_json: bool, as_yaml: bool):
     """Unfollow a user."""
-    try:
-        data = run_client_action(ctx, lambda client: client.unfollow_user(user_id))
-
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            print_success(f"Unfollowed user {user_id}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
+    handle_command(
+        ctx,
+        action=lambda client: client.unfollow_user(user_id),
+        render=lambda _data: print_success(f"Unfollowed user {user_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
 
 
 @click.command()
@@ -56,17 +55,18 @@ def unfollow(ctx, user_id: str, as_json: bool, as_yaml: bool):
 @click.pass_context
 def favorites(ctx, user_id: str | None, cursor: str, as_json: bool, as_yaml: bool):
     """List favorited (bookmarked) notes. Defaults to current user if user_id is omitted."""
-    try:
-        uid = _resolve_user_id(ctx, user_id)
-        data = run_client_action(ctx, lambda client: client.get_user_favorites(uid, cursor=cursor))
+    uid = _resolve_user_id(ctx, user_id)
 
-        if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
-            from ..formatter import render_user_posts
-            notes = data.get("notes", []) if isinstance(data, dict) else []
-            render_user_posts(notes)
-            if isinstance(data, dict) and data.get("has_more"):
-                print_info(f"More notes — use --cursor {data.get('cursor', '')}")
+    def _render_favorites(data):
+        page = normalize_paged_notes(data)
+        render_user_posts(page["notes"])
+        if page["has_more"]:
+            print_info(f"More notes — use --cursor {page['cursor']}")
 
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml)
-
+    handle_command(
+        ctx,
+        action=lambda client: client.get_user_favorites(uid, cursor=cursor),
+        render=_render_favorites,
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )

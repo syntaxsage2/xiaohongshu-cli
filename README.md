@@ -63,7 +63,7 @@ uv sync
 ```bash
 # ─── Auth ─────────────────────────────────────────
 xhs login                             # Extract cookies from browser
-xhs login --qrcode                    # Scan QR with Xiaohongshu app (no browser needed)
+xhs login --qrcode                    # Browser-assisted QR login, scan in terminal
 xhs status                            # Check login status
 xhs whoami                            # Detailed profile (fans, likes, etc)
 xhs whoami --json                     # Structured JSON envelope
@@ -78,12 +78,13 @@ xhs search-user "用户名"               # Search users
 xhs topics "美食"                      # Search hashtags/topics
 
 # ─── Reading ──────────────────────────────────────
-xhs read <note_id>                     # Read a note
-xhs read "https://www.xiaohongshu.com/explore/xxx?xsec_token=yyy"  # Read by URL (auto-extracts xsec_token)
-xhs comments "<url>"                   # View comments — paste URL to auto-extract xsec_token
+xhs read <note_id>                     # Read a note (API only)
+xhs read "https://www.xiaohongshu.com/explore/xxx?xsec_token=yyy"  # Read by URL (uses URL token)
+xhs comments "<url>"                   # View comments — paste URL to cache/reuse xsec_token
 xhs comments "<url>" --all             # Fetch ALL comments (auto-paginate all pages)
 xhs comments "<url>" --all --json      # All comments as JSON
 xhs comments <note_id> --xsec-token T  # Use note_id + explicit xsec_token
+xhs comments <note_id>                 # Reuse cached token if available
 xhs sub-comments <note_id> <cmt_id>   # View replies to a comment
 xhs user <user_id>                     # User profile
 xhs user-posts <user_id>              # User's published notes
@@ -131,10 +132,10 @@ xiaohongshu-cli supports multiple authentication methods:
 
 1. **Saved cookies** — loads from `~/.xiaohongshu-cli/cookies.json`
 2. **Browser cookies** — auto-detects installed browsers and extracts cookies (supports Chrome, Arc, Edge, Firefox, Safari, Brave, Chromium, Opera, Vivaldi, and more)
-3. **QR code login** — scan with Xiaohongshu app, no browser needed (`xhs login --qrcode`)
+3. **QR code login** — browser-assisted login with terminal QR output (`xhs login --qrcode`)
 
 `xhs login` automatically tries all installed browsers and uses the first one with valid cookies.
-Use `--cookie-source <browser>` to specify a browser explicitly, or `--qrcode` for QR code login.
+Use `--cookie-source <browser>` to specify a browser explicitly, or `--qrcode` for browser-assisted QR login.
 Other authenticated commands automatically retry once with fresh browser cookies when the saved session has expired.
 
 ### Cookie TTL
@@ -210,17 +211,17 @@ xhs_cli/
 ├── __init__.py
 ├── cli.py              # Click entry point & command registration
 ├── client.py           # XHS API client (signing, retry, rate-limit, anti-detection)
-├── cookies.py          # Cookie extraction, TTL management, auto-refresh
+├── cookies.py          # Cookie extraction, TTL management, auto-refresh, token cache
 ├── signing.py          # Main API x-s / x-s-common signature generation
 ├── creator_signing.py  # Creator API AES-128-CBC signature
 ├── constants.py        # URLs, User-Agent, Chrome version, SDK config
 ├── exceptions.py       # Structured exception hierarchy (6 error types)
-├── qr_login.py         # QR code login (terminal QR + activate API)
+├── qr_login.py         # QR code login (browser-assisted terminal QR + HTTP fallback)
 ├── formatter.py        # Output formatting, schema envelope, Rich rendering
 └── commands/
     ├── _common.py      # Shared CLI helpers (structured_output_options, etc.)
     ├── auth.py         # login/logout/status/whoami
-    ├── reading.py      # search/read/comments/user/feed/hot/topics
+    ├── reading.py      # search/read/comments/user/feed/hot/topics/search-user
     ├── interactions.py  # like/favorite/comment/reply/delete-comment
     ├── social.py       # follow/unfollow/favorites
     ├── creator.py      # post/my-notes/delete
@@ -284,7 +285,7 @@ The built-in Gaussian jitter delay (~1-1.5s between requests) is intentional to 
 
 ## 功能特性
 
-- 🔐 **认证** — 自动提取浏览器 Cookie，二维码扫码登录，状态检查，用户信息
+- 🔐 **认证** — 自动提取浏览器 Cookie，browser-assisted 二维码扫码登录，状态检查，用户信息
 - 🔍 **搜索** — 按关键词搜索笔记、用户、话题
 - 📖 **阅读** — 笔记详情、评论、子评论、用户主页
 - 📰 **发现** — 推荐 Feed、按分类浏览热门
@@ -328,7 +329,7 @@ uv sync
 ```bash
 # 认证
 xhs login                             # 从浏览器提取 Cookie
-xhs login --qrcode                    # 二维码扫码登录（无需浏览器）
+xhs login --qrcode                    # browser-assisted 二维码扫码登录（终端显示二维码）
 xhs status                            # 检查登录状态
 xhs whoami                            # 查看用户资料
 xhs logout                            # 清除缓存的 Cookie
@@ -340,12 +341,13 @@ xhs search-user "用户名"               # 搜索用户
 xhs topics "美食"                      # 搜索话题
 
 # 阅读
-xhs read <note_id>                     # 阅读笔记
-xhs read "https://...?xsec_token=..."  # 粘贴网页 URL 直接阅读（自动提取 token）
-xhs comments "<url>"                   # 查看评论 — 粘贴 URL 自动提取 xsec_token
+xhs read <note_id>                     # 阅读笔记（仅走 API）
+xhs read "https://...?xsec_token=..."  # 粘贴网页 URL 直接阅读（使用 URL token）
+xhs comments "<url>"                   # 查看评论 — 粘贴 URL 以缓存/复用 xsec_token
 xhs comments "<url>" --all             # 获取全部评论（自动翻页）
 xhs comments "<url>" --all --json      # 全部评论，JSON 格式
 xhs comments <note_id> --xsec-token T  # 用 note_id + 显式 xsec_token
+xhs comments <note_id>                 # 如果之前访问过 URL，会复用缓存 token
 xhs sub-comments <note_id> <cmt_id>   # 查看评论的回复
 xhs user <user_id>                     # 用户主页
 xhs user-posts <user_id>              # 用户发布的笔记
@@ -390,11 +392,11 @@ xiaohongshu-cli 支持多种认证方式：
 
 1. **已保存 Cookie** — 从 `~/.xiaohongshu-cli/cookies.json` 加载
 2. **浏览器 Cookie** — 自动检测已安装浏览器并提取（支持 Chrome、Arc、Edge、Firefox、Safari、Brave、Chromium、Opera、Vivaldi 等）
-3. **二维码扫码登录** — 用小红书 App 扫码，无需浏览器（`xhs login --qrcode`）
+3. **二维码扫码登录** — browser-assisted 登录，终端显示二维码，用小红书 App 扫码（`xhs login --qrcode`）
 
 Cookie 保存后有效期 **7 天**，超时后自动尝试从浏览器刷新。
 
-`xhs login` 会自动尝试所有已安装浏览器，使用第一个有有效 Cookie 的浏览器。也可用 `--cookie-source <browser>` 指定浏览器，或 `--qrcode` 使用二维码登录。其他需认证命令在 session 过期时会自动重试一次。
+`xhs login` 会自动尝试所有已安装浏览器，使用第一个有有效 Cookie 的浏览器。也可用 `--cookie-source <browser>` 指定浏览器，或 `--qrcode` 使用 browser-assisted 二维码登录。其他需认证命令在 session 过期时会自动重试一次。
 
 ## 常见问题
 

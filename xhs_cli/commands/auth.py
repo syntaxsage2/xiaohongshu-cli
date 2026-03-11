@@ -3,6 +3,7 @@
 import click
 
 from ..client import XhsClient
+from ..command_normalizers import normalize_xhs_user_payload
 from ..cookies import clear_cookies, get_cookies
 from ..formatter import (
     console,
@@ -11,21 +12,29 @@ from ..formatter import (
     render_user_info,
     success_payload,
 )
-from ._common import exit_for_error, run_client_action, structured_output_options
+from ._common import handle_errors, run_client_action, structured_output_options
 
 
-def _xhs_user_payload(info: dict) -> dict[str, object]:
-    """Normalize Xiaohongshu user info for structured agent output."""
-    return {
-        "id": info.get("user_id") or info.get("userid") or info.get("red_id") or "",
-        "name": info.get("nickname", "Unknown"),
-        "username": info.get("red_id", ""),
-        "nickname": info.get("nickname", "Unknown"),
-        "red_id": info.get("red_id", ""),
-        "ip_location": info.get("ip_location", ""),
-        "desc": info.get("desc", ""),
-    }
+def _emit_payload(data: dict[str, object], *, as_json: bool, as_yaml: bool) -> bool:
+    """Emit a structured success payload when requested."""
+    return maybe_print_structured(success_payload(data), as_json=as_json, as_yaml=as_yaml)
 
+
+def _print_login_success(user: dict[str, object]) -> None:
+    """Print a concise login success message."""
+    print_success(f"Logged in as: {user['nickname']} (ID: {user['red_id']})")
+
+
+def _print_status_summary(user: dict[str, object]) -> None:
+    """Render a short authenticated-user summary."""
+    console.print("[bold green]✓ Logged in[/bold green]")
+    console.print(f"  昵称: [bold]{user['nickname']}[/bold]")
+    if user["red_id"]:
+        console.print(f"  小红书号: {user['red_id']}")
+    if user["ip_location"]:
+        console.print(f"  IP 属地: {user['ip_location']}")
+    if user["desc"]:
+        console.print(f"  简介: {user['desc']}")
 
 @click.command()
 @click.option(
@@ -42,53 +51,60 @@ def login(ctx, cookie_source: str | None, as_json: bool, as_yaml: bool, use_qrco
     """Log in by extracting cookies from browser, or via QR code."""
 
     if use_qrcode:
-        # QR code login flow
-        try:
+        def _login_with_qrcode() -> None:
             from ..qr_login import qrcode_login
 
-            cookies = qrcode_login()
+            cookies = qrcode_login(prefer_browser_assisted=True)
 
             # Verify by fetching user info (may return guest=true briefly)
             import time
             time.sleep(1)  # brief delay for session propagation
             with XhsClient(cookies) as client:
                 info = client.get_self_info()
+            user = normalize_xhs_user_payload(info)
 
-            if info.get("guest"):
+            if user["guest"]:
                 # Session not yet propagated; still valid
-                payload = success_payload({"authenticated": True, "user": {"id": info.get("user_id", "")}})
-                if not maybe_print_structured(payload, as_json=as_json, as_yaml=as_yaml):
+                if not _emit_payload(
+                    {"authenticated": True, "user": {"id": user["id"]}},
+                    as_json=as_json,
+                    as_yaml=as_yaml,
+                ):
                     print_success("Logged in (session saved)")
             else:
-                payload = success_payload({"authenticated": True, "user": _xhs_user_payload(info)})
-                if not maybe_print_structured(payload, as_json=as_json, as_yaml=as_yaml):
-                    nickname = info.get("nickname", "Unknown")
-                    red_id = info.get("red_id", "")
-                    print_success(f"Logged in as: {nickname} (ID: {red_id})")
+                if not _emit_payload({"authenticated": True, "user": user}, as_json=as_json, as_yaml=as_yaml):
+                    _print_login_success(user)
 
-        except Exception as exc:
-            exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix="QR login failed")
+        handle_errors(
+            _login_with_qrcode,
+            as_json=as_json,
+            as_yaml=as_yaml,
+            prefix="QR login failed",
+        )
         return
 
     # Browser cookie extraction (default)
     if cookie_source is None:
         cookie_source = ctx.obj.get("cookie_source", "auto") if ctx.obj else "auto"
-    try:
+
+    def _login_with_browser() -> None:
         browser, cookies = get_cookies(cookie_source, force_refresh=True)
         print_success(f"Cookies extracted from {browser}")
 
         # Verify by fetching user info
         with XhsClient(cookies) as client:
             info = client.get_self_info()
+        user = normalize_xhs_user_payload(info)
 
-        payload = success_payload({"authenticated": True, "user": _xhs_user_payload(info)})
-        if not maybe_print_structured(payload, as_json=as_json, as_yaml=as_yaml):
-            nickname = info.get("nickname", "Unknown")
-            red_id = info.get("red_id", "")
-            print_success(f"Logged in as: {nickname} (ID: {red_id})")
+        if not _emit_payload({"authenticated": True, "user": user}, as_json=as_json, as_yaml=as_yaml):
+            _print_login_success(user)
 
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix="Login verification failed")
+    handle_errors(
+        _login_with_browser,
+        as_json=as_json,
+        as_yaml=as_yaml,
+        prefix="Login verification failed",
+    )
 
 
 @click.command()
@@ -96,30 +112,14 @@ def login(ctx, cookie_source: str | None, as_json: bool, as_yaml: bool, use_qrco
 @click.pass_context
 def status(ctx, as_json: bool, as_yaml: bool):
     """Check current login status and user info."""
-    try:
+    def _show_status() -> None:
         info = run_client_action(ctx, lambda client: client.get_self_info())
+        user = normalize_xhs_user_payload(info)
 
-        if not maybe_print_structured(
-            success_payload({"authenticated": True, "user": _xhs_user_payload(info)}),
-            as_json=as_json,
-            as_yaml=as_yaml,
-        ):
-            nickname = info.get("nickname", "Unknown")
-            red_id = info.get("red_id", "")
-            ip_location = info.get("ip_location", "")
-            desc = info.get("desc", "")
+        if not _emit_payload({"authenticated": True, "user": user}, as_json=as_json, as_yaml=as_yaml):
+            _print_status_summary(user)
 
-            console.print("[bold green]✓ Logged in[/bold green]")
-            console.print(f"  昵称: [bold]{nickname}[/bold]")
-            if red_id:
-                console.print(f"  小红书号: {red_id}")
-            if ip_location:
-                console.print(f"  IP 属地: {ip_location}")
-            if desc:
-                console.print(f"  简介: {desc}")
-
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix="Status check failed")
+    handle_errors(_show_status, as_json=as_json, as_yaml=as_yaml, prefix="Status check failed")
 
 
 @click.command()
@@ -127,8 +127,7 @@ def status(ctx, as_json: bool, as_yaml: bool):
 def logout(as_json: bool, as_yaml: bool):
     """Clear saved cookies and log out."""
     clear_cookies()
-    payload = success_payload({"logged_out": True})
-    if not maybe_print_structured(payload, as_json=as_json, as_yaml=as_yaml):
+    if not _emit_payload({"logged_out": True}, as_json=as_json, as_yaml=as_yaml):
         print_success("Logged out — cookies cleared")
 
 
@@ -137,15 +136,11 @@ def logout(as_json: bool, as_yaml: bool):
 @click.pass_context
 def whoami(ctx, as_json: bool, as_yaml: bool):
     """Show detailed profile of current user (level, fans, likes)."""
-    try:
+    def _show_profile() -> None:
         info = run_client_action(ctx, lambda client: client.get_self_info())
+        user = normalize_xhs_user_payload(info)
 
-        if not maybe_print_structured(
-            success_payload({"user": _xhs_user_payload(info)}),
-            as_json=as_json,
-            as_yaml=as_yaml,
-        ):
+        if not _emit_payload({"user": user}, as_json=as_json, as_yaml=as_yaml):
             render_user_info(info)
 
-    except Exception as exc:
-        exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix="Failed to get profile")
+    handle_errors(_show_profile, as_json=as_json, as_yaml=as_yaml, prefix="Failed to get profile")

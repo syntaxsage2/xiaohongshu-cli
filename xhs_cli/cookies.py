@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from .constants import CONFIG_DIR_NAME, COOKIE_FILE
+from .constants import CONFIG_DIR_NAME, COOKIE_FILE, TOKEN_CACHE_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,11 @@ def get_config_dir() -> Path:
 def get_cookie_path() -> Path:
     """Get cookie file path."""
     return get_config_dir() / COOKIE_FILE
+
+
+def get_token_cache_path() -> Path:
+    """Get xsec token cache file path."""
+    return get_config_dir() / TOKEN_CACHE_FILE
 
 
 def load_saved_cookies() -> dict[str, str] | None:
@@ -62,6 +67,45 @@ def clear_cookies() -> None:
     if cookie_path.exists():
         cookie_path.unlink()
         logger.debug("Cleared cookies from %s", cookie_path)
+
+
+def load_token_cache() -> dict[str, str]:
+    """Load cached note_id -> xsec_token mappings."""
+    cache_path = get_token_cache_path()
+    if not cache_path.exists():
+        return {}
+    try:
+        data = json.loads(cache_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.debug("Failed to load token cache: %s", exc)
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): str(v) for k, v in data.items() if k and v}
+
+
+def save_token_cache(cache: dict[str, str]) -> None:
+    """Persist xsec token cache with restricted permissions."""
+    cache_path = get_token_cache_path()
+    cache_path.write_text(json.dumps(cache, indent=2))
+    cache_path.chmod(0o600)
+
+
+def cache_xsec_token(note_id: str, xsec_token: str) -> None:
+    """Store a resolved xsec token for later comment/detail access."""
+    if not note_id or not xsec_token:
+        return
+    cache = load_token_cache()
+    if cache.get(note_id) == xsec_token:
+        return
+    cache[note_id] = xsec_token
+    save_token_cache(cache)
+    logger.debug("Cached xsec_token for note %s", note_id)
+
+
+def get_cached_xsec_token(note_id: str) -> str:
+    """Get a cached xsec token for a note ID."""
+    return load_token_cache().get(note_id, "")
 
 
 @functools.lru_cache(maxsize=1)
@@ -179,8 +223,8 @@ def extract_browser_cookies(source: str = "auto") -> tuple[str, dict[str, str]] 
     """
     Extract XHS cookies from browser using browser-cookie3.
 
-    When *source* is ``"auto"``, tries every browser supported by browser_cookie3
-    concurrently and returns the first one that has valid cookies.
+    When *source* is ``"auto"``, tries supported browsers with a small
+    thread pool and returns the first one that has valid cookies.
 
     Returns ``(browser_name, cookies)`` on success, or ``None``.
     """
@@ -200,7 +244,9 @@ def extract_browser_cookies(source: str = "auto") -> tuple[str, dict[str, str]] 
         logger.debug("browser_cookie3 not installed")
         return None
 
-    for browser in browsers:
+    from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+
+    def _try_browser(browser: str) -> tuple[str, dict[str, str]] | None:
         logger.debug("Auto-detect: trying %s …", browser)
         cookies = _extract_in_process(browser)
         if cookies:
@@ -208,6 +254,18 @@ def extract_browser_cookies(source: str = "auto") -> tuple[str, dict[str, str]] 
         cookies = _extract_via_subprocess(browser)
         if cookies:
             return browser, cookies
+        return None
+
+    with ThreadPoolExecutor(max_workers=min(4, len(browsers) or 1)) as pool:
+        pending = {pool.submit(_try_browser, browser) for browser in browsers}
+        while pending:
+            done, pending = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                result = future.result()
+                if result:
+                    for rest in pending:
+                        rest.cancel()
+                    return result
 
     return None
 
