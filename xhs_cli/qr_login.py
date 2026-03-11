@@ -207,16 +207,7 @@ def qrcode_login(
                     "web_session": session,
                 }
                 save_cookies(cookies)
-
-                # Verify it works
-                try:
-                    with XhsClient(cookies, request_delay=0) as verify:
-                        info = verify.get_self_info()
-                    nickname = info.get("nickname", "")
-                    if nickname:
-                        _print(f"👤 Logged in as: {nickname}")
-                except Exception as exc:
-                    logger.debug("Post-login verify failed (non-fatal): %s", exc)
+                _print(f"👤 User ID: {user_id}")
 
                 return cookies
 

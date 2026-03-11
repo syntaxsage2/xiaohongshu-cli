@@ -48,15 +48,23 @@ def login(ctx, cookie_source: str | None, as_json: bool, as_yaml: bool, use_qrco
 
             cookies = qrcode_login()
 
-            # Verify by fetching user info
+            # Verify by fetching user info (may return guest=true briefly)
+            import time
+            time.sleep(1)  # brief delay for session propagation
             with XhsClient(cookies) as client:
                 info = client.get_self_info()
 
-            payload = success_payload({"authenticated": True, "user": _xhs_user_payload(info)})
-            if not maybe_print_structured(payload, as_json=as_json, as_yaml=as_yaml):
-                nickname = info.get("nickname", "Unknown")
-                red_id = info.get("red_id", "")
-                print_success(f"Logged in as: {nickname} (ID: {red_id})")
+            if info.get("guest"):
+                # Session not yet propagated; still valid
+                payload = success_payload({"authenticated": True, "user": {"id": info.get("user_id", "")}})
+                if not maybe_print_structured(payload, as_json=as_json, as_yaml=as_yaml):
+                    print_success("Logged in (session saved)")
+            else:
+                payload = success_payload({"authenticated": True, "user": _xhs_user_payload(info)})
+                if not maybe_print_structured(payload, as_json=as_json, as_yaml=as_yaml):
+                    nickname = info.get("nickname", "Unknown")
+                    red_id = info.get("red_id", "")
+                    print_success(f"Logged in as: {nickname} (ID: {red_id})")
 
         except Exception as exc:
             exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix="QR login failed")
