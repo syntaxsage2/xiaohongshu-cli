@@ -70,7 +70,7 @@ def handle_command(
         if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml) and render:
             render(data)
         return data
-    except Exception as exc:
+    except (XhsApiError, NoCookieError) as exc:
         exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix=prefix)
 
 
@@ -84,7 +84,7 @@ def handle_errors(
     """Run arbitrary command logic and funnel failures through exit_for_error."""
     try:
         return fn()
-    except Exception as exc:
+    except (XhsApiError, NoCookieError) as exc:
         exit_for_error(exc, as_json=as_json, as_yaml=as_yaml, prefix=prefix)
 
 

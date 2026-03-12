@@ -91,21 +91,46 @@ def save_token_cache(cache: dict[str, str]) -> None:
     cache_path.chmod(0o600)
 
 
+TOKEN_CACHE_MAX_SIZE = 500
+
+
 def cache_xsec_token(note_id: str, xsec_token: str) -> None:
-    """Store a resolved xsec token for later comment/detail access."""
+    """Store a resolved xsec token for later comment/detail access.
+
+    Maintains an LRU-style cache capped at TOKEN_CACHE_MAX_SIZE entries.
+    Each entry stores (token, timestamp); overflow evicts the oldest entries.
+    """
     if not note_id or not xsec_token:
         return
     cache = load_token_cache()
-    if cache.get(note_id) == xsec_token:
+
+    existing = cache.get(note_id)
+    if isinstance(existing, dict) and existing.get("token") == xsec_token:
+        existing["ts"] = time.time()
+        save_token_cache(cache)
         return
-    cache[note_id] = xsec_token
+
+    cache[note_id] = {"token": xsec_token, "ts": time.time()}
+
+    # Evict oldest entries if over limit
+    if len(cache) > TOKEN_CACHE_MAX_SIZE:
+        sorted_keys = sorted(
+            cache.keys(),
+            key=lambda k: cache[k].get("ts", 0) if isinstance(cache[k], dict) else 0,
+        )
+        for key in sorted_keys[: len(cache) - TOKEN_CACHE_MAX_SIZE]:
+            del cache[key]
+
     save_token_cache(cache)
     logger.debug("Cached xsec_token for note %s", note_id)
 
 
 def get_cached_xsec_token(note_id: str) -> str:
     """Get a cached xsec token for a note ID."""
-    return load_token_cache().get(note_id, "")
+    entry = load_token_cache().get(note_id, "")
+    if isinstance(entry, dict):
+        return entry.get("token", "")
+    return str(entry) if entry else ""
 
 
 @functools.lru_cache(maxsize=1)

@@ -7,7 +7,7 @@ from typing import Any
 from rich.panel import Panel
 from rich.table import Table
 
-from .formatter import coerce_int, console, format_count, print_error, print_info
+from .formatter_utils import coerce_int, console, format_count, print_error, print_info
 from .formatter_normalizers import (
     normalize_comments,
     normalize_creator_notes,
