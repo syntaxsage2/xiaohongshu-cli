@@ -12,8 +12,6 @@ Public API (unchanged from previous implementation):
 
 from __future__ import annotations
 
-from typing import Any
-
 from xhshow import CryptoConfig, SessionManager, Xhshow
 from xhshow.utils.url_utils import extract_uri  # noqa: F401 — re-export
 

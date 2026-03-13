@@ -122,7 +122,10 @@ def _load_token_cache_from_disk(cache_path: Path) -> OrderedDict[str, dict[str, 
     return OrderedDict(normalized)
 
 
-def _prune_token_cache(cache: OrderedDict[str, dict[str, Any]], now: float | None = None) -> OrderedDict[str, dict[str, Any]]:
+def _prune_token_cache(
+    cache: OrderedDict[str, dict[str, Any]],
+    now: float | None = None,
+) -> OrderedDict[str, dict[str, Any]]:
     now = now or time.time()
     pruned = OrderedDict(
         (key, value)

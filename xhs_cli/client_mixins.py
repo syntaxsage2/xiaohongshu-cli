@@ -17,8 +17,8 @@ from .constants import CREATOR_HOST, HOME_URL, UPLOAD_HOST, USER_AGENT
 from .cookies import (
     cache_note_context,
     cookies_to_string,
-    get_config_dir,
     get_cached_note_context,
+    get_config_dir,
     invalidate_note_context,
 )
 from .exceptions import NeedVerifyError, UnsupportedOperationError, XhsApiError

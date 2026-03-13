@@ -19,7 +19,6 @@ from ..formatter import (
 )
 from ._common import exit_for_error, handle_command, run_client_action, structured_output_options
 
-
 # ─── Token propagation ─────────────────────────────────────────────────────
 
 def _cache_tokens_from_items(data: dict, *, xsec_source: str) -> None:

@@ -128,7 +128,7 @@ class TestNoteContextCache:
     def test_expired_note_context_is_not_returned(self, tmp_config_dir):
         stale_ts = time.time() - NOTE_CONTEXT_TTL_SECONDS - 10
         get_token_cache_path().write_text(
-            '{"note-1":{"token":"stale-token","source":"pc_search","ts":%s}}' % stale_ts
+            f'{{"note-1":{{"token":"stale-token","source":"pc_search","ts":{stale_ts}}}}}'
         )
 
         assert get_cached_note_context("note-1") == {}
